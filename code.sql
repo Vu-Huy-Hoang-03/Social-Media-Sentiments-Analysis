@@ -80,26 +80,70 @@ SELECT	country,
 		positive_amount,
 		ROUND(
 			100.00 * positive_amount / post_amount
-			,2) as positive_rate
+			,2) as positive_rate,
+		post_amount
 FROM top_country
 
 -- Top Platform
+WITH top_platform AS (
 SELECT 	platform, 
-		COUNT(post_id) as post_amount, 
-		SUM(likes) as like_amount,
-		COALESCE
-		((SELECT COUNT(sentiment)
-		FROM media
-		WHERE sentiment = 'Positive'
-			AND platform = a.platform
-		GROUP BY platform)
-		,0) as positive_amount
+	COUNT(post_id) as post_amount, 
+	SUM(likes) as like_amount,
+	COALESCE
+	((SELECT COUNT(sentiment)
+	FROM media
+	WHERE sentiment = 'Positive'
+		AND platform = a.platform
+	GROUP BY platform)
+	,0) as positive_amount
 FROM media as a
 GROUP BY platform
 ORDER BY like_amount DESC
+)
+SELECT	platform,
+		like_amount,
+		ROUND(
+			CAST(like_amount AS DECIMAL) / post_amount
+			,2) as like_per_post,
+		positive_amount,
+		ROUND(
+			100.00 * positive_amount / post_amount
+			,2) as positive_rate,
+		post_amount
+FROM top_platform
 
--- 
+-- which time of the week has the most like
+WITH step_1 AS (
+SELECT 	EXTRACT(DOW FROM post_date) as DOW,
+		hour,
+		SUM(likes) as total_likes
+FROM media
+GROUP BY DOW, hour
+ORDER BY DOW, hour
+)
+SELECT 	CASE
+		WHEN DOW = 0 THEN 'Sunday'
+		WHEN DOW = 1 THEN 'Monday'
+		WHEN DOW = 2 THEN 'Tuesday'
+		WHEN DOW = 3 THEN 'Wednesday'
+		WHEN DOW = 4 THEN 'Thursday'
+		WHEN DOW = 5 THEN 'Friday'
+		WHEN DOW = 6 THEN 'Saturday'
+	END as DOW,
+	hour, total_likes
+FROM step_1
 
+-- top hashtags
+WITH seperate AS (
+SELECT 	post_id, likes, hashtags,
+		REGEXP_SPLIT_TO_TABLE(hashtags, ' ') as hashtag	
+FROM media
+)
+SELECT	hashtag,
+		SUM(likes) as like_per_hashtag
+FROM seperate
+GROUP BY hashtag
+ORDER BY like_per_hashtag DESC
 
 
 
