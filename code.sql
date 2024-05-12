@@ -49,12 +49,21 @@ FROM social_media
 
 DROP TABLE social_media
 
+-- add column length = LENGTH(text)
+ALTER TABLE media
+ADD COLUMN length numeric
+
+UPDATE media
+SET length = LENGTH(text)
+
 -- Analysis ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Top 10 Sentiment 
-SELECT sentiment, COUNT(sentiment) as amount
+SELECT 	sentiment, 
+		COUNT(sentiment) as amount,
+		SUM(likes) as like_amount
 FROM media
 GROUP BY sentiment
-ORDER BY amount DESC
+ORDER BY amount DESC, like_amount DESC 
 LIMIT 10
 
 -- Top Country (sentiment positive + most likes)
@@ -145,7 +154,18 @@ FROM seperate
 GROUP BY hashtag
 ORDER BY like_per_hashtag DESC
 
-
+-- length - like 
+SELECT	CASE
+		WHEN length < 56 THEN 'short'
+		WHEN length BETWEEN 56 AND 95 THEN 'medium'
+		WHEN length > 95 THEN 'long'
+	END as length_cat,
+	ROUND(
+		AVG(likes)
+		,2) as like_per_post
+FROM media
+GROUP BY length_cat
+ORDER BY like_per_post
 
 
 
