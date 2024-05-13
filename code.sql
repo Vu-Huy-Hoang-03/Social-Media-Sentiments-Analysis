@@ -86,19 +86,19 @@ GROUP BY sentiment
 ORDER BY amount DESC, like_amount DESC 
 LIMIT 10
 
--- Compare differences between 3 sentiment categories
+-- Compare differences between 3 sentiment categories ---------------------------------------------------------------------------------------------------------------
 SELECT 	sentiment_category,
 		COUNT(post_id) as amount
 FROM media
 GROUP BY sentiment_category
 	
--- Top Country (sentiment positive + most likes)
+-- Top Country (sentiment_category positive + most likes) ------------------------------------------------------------------------------------------------------------
 WITH top_country AS (
 SELECT 	country, SUM(likes) as like_amount,
 		COALESCE
 		((SELECT COUNT(sentiment)
 		FROM media
-		WHERE sentiment = 'Positive'
+		WHERE sentiment_category = 'positive'
 			AND country = a.country
 		GROUP BY country)
 		,0) as positive_amount,
@@ -119,7 +119,7 @@ SELECT	country,
 		post_amount
 FROM top_country
 
--- Top Platform
+-- Top Platform ---------------------------------------------------------------------------------------------------------------------------------------------------
 WITH top_platform AS (
 SELECT 	platform, 
 	COUNT(post_id) as post_amount, 
@@ -127,7 +127,7 @@ SELECT 	platform,
 	COALESCE
 	((SELECT COUNT(sentiment)
 	FROM media
-	WHERE sentiment = 'Positive'
+	WHERE sentiment_category = 'positive'
 		AND platform = a.platform
 	GROUP BY platform)
 	,0) as positive_amount
@@ -147,15 +147,60 @@ SELECT	platform,
 		post_amount
 FROM top_platform
 
--- which time of the week has the most like
-WITH step_1 AS (
+-- which time of the week has the most like -----------------------------------------------------------------------------------------------------------------------
+
+-- count positive group by dow, hour 
+WITH positive AS (
+SELECT	EXTRACT(DOW FROM post_date) as DOW,
+		hour,
+		COUNT(post_id) as positive_amount
+FROM media
+WHERE sentiment_category = 'positive'
+GROUP BY DOW, hour
+)
+	
+-- count negative group by dow, hour 
+, negative AS (
+SELECT	EXTRACT(DOW FROM post_date) as DOW,
+		hour,
+		COUNT(post_id) as negative_amount
+FROM media
+WHERE sentiment_category = 'negative'
+GROUP BY DOW, hour
+)
+
+-- avg like group by dow, hour 
+, likes AS (
 SELECT 	EXTRACT(DOW FROM post_date) as DOW,
 		hour,
-		SUM(likes) as total_likes
-FROM media
+		AVG(likes) as avg_like,
+		COUNT(post_id) as post_amount
+FROM media as a
 GROUP BY DOW, hour
-ORDER BY DOW, hour
 )
+
+-- combine all of CTEs above
+, dow_num AS (
+SELECT	DOW, hour, 
+		ROUND(avg_like,2) as avg_like,
+		COALESCE(
+			ROUND(100.00*
+				(SELECT positive_amount FROM positive 
+					WHERE DOW=a.DOW AND hour=a.hour)
+				/ post_amount
+			,2)
+		,0.00) as positive_rate,
+		COALESCE(
+			ROUND(100.00*
+			(SELECT negative_amount FROM negative
+					WHERE DOW=a.DOW AND hour=a.hour)
+				/ post_amount 
+			,2) 
+		,0.00) as negative_rate
+FROM likes as a
+ORDER BY dow, hour
+)
+
 SELECT 	CASE
 		WHEN DOW = 0 THEN 'Sunday'
 		WHEN DOW = 1 THEN 'Monday'
@@ -165,10 +210,10 @@ SELECT 	CASE
 		WHEN DOW = 5 THEN 'Friday'
 		WHEN DOW = 6 THEN 'Saturday'
 	END as DOW,
-	hour, total_likes
-FROM step_1
+	hour, avg_like, positive_rate, negative_rate
+FROM dow_num
 
--- top hashtags
+-- top hashtags ---------------------------------------------------------------------------------------------------------------------------------------------------
 WITH seperate AS (
 SELECT 	post_id, likes, hashtags,
 		REGEXP_SPLIT_TO_TABLE(hashtags, ' ') as hashtag	
@@ -180,7 +225,7 @@ FROM seperate
 GROUP BY hashtag
 ORDER BY like_per_hashtag DESC
 
--- length - like 
+-- length - like ---------------------------------------------------------------------------------------------------------------------------------------------------
 SELECT	CASE
 		WHEN length < 56 THEN 'short'
 		WHEN length BETWEEN 56 AND 95 THEN 'medium'
