@@ -220,25 +220,60 @@ SELECT 	post_id, likes, hashtags,
 FROM media
 )
 SELECT	hashtag,
-		SUM(likes) as like_per_hashtag
+	SUM(likes) as like_hashtag
 FROM seperate
 GROUP BY hashtag
-ORDER BY like_per_hashtag DESC
+ORDER BY like_hashtag DESC
+
+-- top words -------------------------------------------------------------------------------------------------------------------------------------------------------
+WITH seperate AS (
+SELECT 	post_id, likes, text,
+		REGEXP_SPLIT_TO_TABLE(text, ' ') as texts
+FROM media
+)
+SELECT	texts, 
+	SUM(likes) as like_text
+FROM seperate
+WHERE texts NOT IN ('about', 'above', 'across', 'after', 'against', 'along', 
+		'among', 'around', 'at', 'before', 'behind', 'below', 
+		'beneath', 'beside', 'between', 'beyond', 'by', 'down', 
+		'during', 'for', 'from', 'in', 'inside', 'into', 'near', 
+		'of', 'off', 'on', 'onto', 'out', 'over', 'through', 
+		'to', 'toward', 'under', 'until', 'up', 'upon', 
+		'with', 'within', 'without', 'a', 'an', 'the', 'and',
+	   	'is', 'are', 'The', 'A', 'my', 'that')
+GROUP BY texts
+ORDER BY like_text DESC
 
 -- length - like ---------------------------------------------------------------------------------------------------------------------------------------------------
+-- Q33 = 56 ; Q66 = 95
+SELECT 	PERCENTILE_CONT(0.33) WITHIN GROUP (ORDER BY length) as Q_33,
+		PERCENTILE_CONT(0.66) WITHIN GROUP (ORDER BY length) as Q_66
+FROM media
+
 SELECT	CASE
-		WHEN length < 56 THEN 'short'
-		WHEN length BETWEEN 56 AND 95 THEN 'medium'
-		WHEN length > 95 THEN 'long'
-	END as length_cat,
-	ROUND(
-		AVG(likes)
-		,2) as like_per_post
+			WHEN length < 56 THEN 'short'
+			WHEN length BETWEEN 56 AND 95 THEN 'medium'
+			WHEN length > 95 THEN 'long'
+		END as length_cat,
+		ROUND(
+			AVG(likes)
+			,2) as like_per_post
 FROM media
 GROUP BY length_cat
 ORDER BY like_per_post
 
-
+-- amount of word per positive / negative / neutral post ----------------------------------------------------------------------------------------------------------------------
+SELECT 	ROUND(AVG(length),2) 
+			as positive_length,
+		(SELECT ROUND(AVG(length),2) FROM media 
+		 WHERE sentiment_category = 'negative')
+			as negative_length,
+		(SELECT ROUND(AVG(length),2) FROM media 
+		 WHERE sentiment_category = 'neutral')
+			as neutral_length
+FROM media
+WHERE sentiment_category = 'positive'
 
 
 
