@@ -53,8 +53,28 @@ DROP TABLE social_media
 ALTER TABLE media
 ADD COLUMN length numeric
 
+-- divide sentiment into 3 categories: positive, negative, neutral	
 UPDATE media
 SET length = LENGTH(text)
+
+ALTER TABLE media
+ADD COLUMN sentiment_category;
+
+UPDATE media
+SET sentiment_category = CASE
+		WHEN sentiment IN ('Frustration', 'Disgust', 'Confusion', 
+						  'Mischevious', 'Sadness', 'Fearful', 'Boredom',
+						  'Bad', 'Disappointed', 'Awe', 'Grief', 'Sad',
+						   'Hate', 'Shame', 'Anger', 'Fear', 'Negative',
+						   'Embarrassed', 'Bitter', 'Apprehensive',
+						   'Loss')
+			THEN 'negative'
+		WHEN sentiment IN ('Relief', 'Euphoria', 'Reflection', 'Tranquility'
+						  , 'Calmness', 'Pensive', 'Curiosity', 'Neutral',
+						  'indifference', 'Anticipation')
+			THEN 'neutral'
+		ELSE 'positive'
+	END; 
 
 -- Analysis ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Top 10 Sentiment 
@@ -66,6 +86,12 @@ GROUP BY sentiment
 ORDER BY amount DESC, like_amount DESC 
 LIMIT 10
 
+-- Compare differences between 3 sentiment categories
+SELECT 	sentiment_category,
+		COUNT(post_id) as amount
+FROM media
+GROUP BY sentiment_category
+	
 -- Top Country (sentiment positive + most likes)
 WITH top_country AS (
 SELECT 	country, SUM(likes) as like_amount,
