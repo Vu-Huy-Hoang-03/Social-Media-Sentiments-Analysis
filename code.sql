@@ -79,8 +79,8 @@ SET sentiment_category = CASE
 -- Analysis ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Top 10 Sentiment 
 SELECT 	sentiment, 
-		COUNT(sentiment) as amount,
-		SUM(likes) as like_amount
+	COUNT(sentiment) as amount,
+	SUM(likes) as like_amount
 FROM media
 GROUP BY sentiment
 ORDER BY amount DESC, like_amount DESC 
@@ -88,7 +88,7 @@ LIMIT 10
 
 -- Compare differences between 3 sentiment categories ---------------------------------------------------------------------------------------------------------------
 SELECT 	sentiment_category,
-		COUNT(post_id) as amount
+	COUNT(post_id) as amount
 FROM media
 GROUP BY sentiment_category
 	
